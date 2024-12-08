@@ -1,0 +1,51 @@
+
+WITH 
+-- Generate a list of all hours for the given date range (September 25 - October 3, 2023)
+hour_list AS (
+    WITH RECURSIVE
+    hours(date_hour, hour_num) AS (
+        -- Initial hour (starting from '2023-09-25 00:00:00')
+        SELECT '2023-09-25 00:00:00', 0
+        UNION ALL
+        -- Generate the next hour
+        SELECT strftime('%Y-%m-%d %H:00:00', date_hour, '+1 hour'), hour_num + 1
+        FROM hours
+        WHERE date_hour < '2023-10-03 23:00:00'
+    )
+    SELECT date_hour FROM hours
+),
+
+-- Combine taxi and uber trips within the date range (September 25 - October 3, 2023)
+trip_data AS (
+    SELECT 
+        strftime('%Y-%m-%d %H:00:00', pickup_datetime) AS date_hour,
+        COUNT(*) AS num_trips
+    FROM (
+        SELECT pickup_datetime FROM taxi_trips WHERE pickup_datetime BETWEEN '2023-09-25' AND '2023-10-03'
+        UNION ALL
+        SELECT pickup_datetime FROM uber_trips WHERE pickup_datetime BETWEEN '2023-09-25' AND '2023-10-03'
+    )
+    GROUP BY date_hour
+),
+
+-- Get hourly weather data for the given date range
+weather_data AS (
+    SELECT 
+        strftime('%Y-%m-%d %H:00:00', dateonly || ' ' || hour || ':00:00') AS date_hour,
+        SUM(hourlyprecipitation) AS total_precipitation,
+        AVG(hourlywindspeed) AS avg_wind_speed
+    FROM hourly_weather
+    WHERE dateonly BETWEEN '2023-09-25' AND '2023-10-03'
+    GROUP BY date_hour
+)
+
+-- Join all hours with trip and weather data
+SELECT 
+    hl.date_hour,
+    COALESCE(td.num_trips, 0) AS num_trips, 
+    COALESCE(wd.total_precipitation, 0.0) AS total_precipitation, 
+    COALESCE(wd.avg_wind_speed, 0.0) AS avg_wind_speed
+FROM hour_list hl
+LEFT JOIN trip_data td ON hl.date_hour = td.date_hour
+LEFT JOIN weather_data wd ON hl.date_hour = wd.date_hour
+ORDER BY hl.date_hour;

@@ -1,0 +1,34 @@
+
+WITH ranked_trips AS (
+    SELECT 
+        trip_distance,
+        ROW_NUMBER() OVER (ORDER BY trip_distance) AS row_num,
+        COUNT(*) OVER () AS total_rows
+    FROM (
+        SELECT 
+            trip_distance,
+            pickup_datetime AS pickup_datetime
+        FROM 
+            taxi_trips
+        WHERE 
+            pickup_datetime >= '2024-01-01' 
+            AND pickup_datetime < '2024-02-01'
+
+        UNION ALL
+
+        SELECT 
+            trip_distance,
+            pickup_datetime
+        FROM 
+            uber_trips
+        WHERE 
+            pickup_datetime >= '2024-01-01' 
+            AND pickup_datetime < '2024-02-01'
+    ) AS combined_trips
+)
+SELECT 
+    trip_distance
+FROM 
+    ranked_trips
+WHERE 
+    row_num = CAST(0.95 * total_rows AS INTEGER);

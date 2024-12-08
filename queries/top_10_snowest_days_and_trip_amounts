@@ -1,0 +1,38 @@
+
+WITH combined_trips AS (
+    -- Combine both taxi and Uber trips from January 2020 to August 2024
+    SELECT
+        DATE(pickup_datetime) AS trip_date
+    FROM taxi_trips
+    WHERE DATE(pickup_datetime) BETWEEN '2020-01-01' AND '2024-08-31'
+    UNION ALL
+    SELECT
+        DATE(pickup_datetime) AS trip_date
+    FROM uber_trips
+    WHERE DATE(pickup_datetime) BETWEEN '2020-01-01' AND '2024-08-31'
+),
+daily_ride_summary AS (
+    -- Aggregate the combined trips to get the total number of hired trips per day
+    SELECT
+        trip_date,
+        COUNT(*) AS num_rides
+    FROM combined_trips
+    GROUP BY trip_date
+),
+weather_summary AS (
+    -- Select daily snowfall data from the weather table
+    SELECT
+        DATE(dateonly) AS weather_date,
+        dailysnowfall AS total_snowfall
+    FROM daily_weather
+    WHERE DATE(dateonly) BETWEEN '2020-01-01' AND '2024-08-31'
+)
+-- Final result combining ride and weather summaries
+SELECT
+    dtr.trip_date AS date,
+    ws.total_snowfall,
+    dtr.num_rides
+FROM daily_ride_summary dtr
+JOIN weather_summary ws ON dtr.trip_date = ws.weather_date
+ORDER BY ws.total_snowfall DESC
+LIMIT 10;

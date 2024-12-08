@@ -1,0 +1,44 @@
+
+WITH combined_trips AS (
+    -- Combine both taxi and Uber trips for 2023
+    SELECT
+        DATE(pickup_datetime) AS trip_date,
+        trip_distance
+    FROM taxi_trips
+    WHERE strftime('%Y', pickup_datetime) = '2023'
+    UNION ALL
+    SELECT
+        DATE(pickup_datetime) AS trip_date,
+        trip_distance AS trip_distance
+    FROM uber_trips
+    WHERE strftime('%Y', pickup_datetime) = '2023'
+),
+daily_ride_summary AS (
+    -- Aggregate the combined trips to get the total rides and average distance per day
+    SELECT
+        trip_date,
+        COUNT(*) AS num_rides,
+        AVG(trip_distance) AS avg_distance
+    FROM combined_trips
+    GROUP BY trip_date
+),
+weather_summary AS (
+    -- Aggregate the daily weather data for 2023
+    SELECT
+        DATE(dateonly) AS weather_date,
+        dailyprecipitationtotal AS avg_precipitation,
+        dailywindspeedaverage AS avg_windspeed
+    FROM daily_weather
+    WHERE strftime('%Y', dateonly) = '2023'
+)
+-- Final result combining ride and weather summaries
+SELECT
+    dtr.trip_date AS date,
+    dtr.num_rides,
+    dtr.avg_distance,
+    ws.avg_precipitation,
+    ws.avg_windspeed
+FROM daily_ride_summary dtr
+JOIN weather_summary ws ON dtr.trip_date = ws.weather_date
+ORDER BY dtr.num_rides DESC
+LIMIT 10;
